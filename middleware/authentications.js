@@ -24,11 +24,17 @@ const authenticateUser = async (req, res, next) => {
         if (!user) {
             throw new Error('authentication invalid', 401)
         }
+        if (user.authTokenExpiration < new Date()) {
+            await User.findOneAndUpdate({ _id: payload.userId },
+                { authTokenExpiration: null },
+                { new: true, runValidators: true })
+            return res.status(StatusCodes.OK).json({ status: 'logged_out', msg: 'Successfully logged out' })
+        }
         req.user = {
             userId: payload.userId,
             email: payload.email
         }
-        
+
         next()
     } catch (error) {
         next(error)

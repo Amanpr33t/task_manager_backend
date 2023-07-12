@@ -17,7 +17,8 @@ const signup = async (req, res, next) => {
         if (emailExists) {
             return res.status(StatusCodes.OK).json({ status: 'duplicate', msg: 'Email already exists' })
         }
-        const user = await User.create({ email, password, authTokenExpiration: Date.now() + 1000 * 60 * 60 })
+        const oneDay = 1000 * 60 * 60 * 24
+        const user = await User.create({ email, password, authTokenExpiration: Date.now() + oneDay })
         const authToken = user.createJWT()
 
         return res.status(StatusCodes.CREATED).json({ status: 'ok', msg: 'Account has been created', authToken })
@@ -41,14 +42,25 @@ const login = async (req, res) => {
 
         if (!user || !isPasswordCorrect) {
             return res.status(StatusCodes.OK).json({ status: 'not_found', msg: 'enter valid credentials' })
-        } 
-            const authToken = user.createJWT()
-            const oneDay = 1000 * 60 * 60 * 24
-            await User.findOneAndUpdate({ email },
-                { authTokenExpiration: Date.now() + oneDay },
-                { new: true, runValidators: true })
-            return res.status(StatusCodes.OK).json({ status: 'ok', authToken })
-        
+        }
+        const authToken = user.createJWT()
+        const oneDay = 1000 * 60 * 60 * 24
+        await User.findOneAndUpdate({ email },
+            { authTokenExpiration: Date.now() + oneDay },
+            { new: true, runValidators: true })
+        return res.status(StatusCodes.OK).json({ status: 'ok', authToken })
+
+    } catch (error) {
+        next(error)
+    }
+}
+const logout = async (req,res) => {
+    try {
+        await User.findOneAndUpdate({ _id: req.user.userId },
+            { authTokenExpiration: null },
+            { new: true, runValidators: true })
+        return res.status(StatusCodes.OK).json({ status: 'logged_out', msg: 'Successfully logged out' })
+
     } catch (error) {
         next(error)
     }
@@ -57,4 +69,5 @@ const login = async (req, res) => {
 module.exports = {
     signup,
     login,
+    logout
 }
