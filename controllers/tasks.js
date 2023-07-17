@@ -94,7 +94,7 @@ const getAllTasks = async (req, res) => {
         } else {
             allTasks = await Task.find({
                 createdBy: req.user.userId
-            }).sort({ "completionDate": -1 })
+            }).sort({ "completionDate": 1 })
         }
         return res.status(StatusCodes.OK).json({ status: 'ok', count: allTasks.length, allTasks })
     } catch (error) {
