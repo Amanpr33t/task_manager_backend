@@ -18,12 +18,6 @@ const userRouter= require('./routes/userRouter')
 const taskRouter= require('./routes/taskRouter')
 
 app.set('trust proxy',1)
-app.use(
-    rateLimit({
-        windowMs:1000*60*60*24,
-        max:100
-    })
-)
 app.use(helmet())
 const cors = require('cors');
 app.use(cors())

@@ -28,7 +28,7 @@ const authenticateUser = async (req, res, next) => {
             await User.findOneAndUpdate({ _id: payload.userId },
                 { authTokenExpiration: null },
                 { new: true, runValidators: true })
-            return res.status(StatusCodes.OK).json({ status: 'logged_out', msg: 'Successfully logged out' })
+            return res.status(StatusCodes.OK).json({ status: 'session_expired', msg: 'Successfully logged out' })
         }
         req.user = {
             userId: payload.userId,

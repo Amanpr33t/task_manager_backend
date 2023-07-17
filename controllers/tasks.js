@@ -12,7 +12,7 @@ const addTask = async (req, res) => {
         } else if (taskInfo && taskInfo.length > 160) {
             throw new CustomAPIError('Task content is too long', 204)
         } else {
-            const task = await Task.create(req.body)
+            await Task.create({ ...req.body, completionDate: new Date(completionDate) })
             return res.status(StatusCodes.CREATED).json({ status: 'ok', msg: 'Task has been added successfully' })
         }
     } catch (error) {
@@ -22,52 +22,82 @@ const addTask = async (req, res) => {
 
 const getAllTasks = async (req, res) => {
     try {
-        const { year, month, date, status, sort } = req.query
-        let allTasks = []
-        if (year || month || date || status || sort) {
-            const tasks = await Task.find({
-                createdBy: req.user.userId,
-                ...req.query
-            }).sort({ "createdAt": sort === 'old' ? 1 : -1 })
-            tasks.forEach((task) => {
-                if (year && !month && !date && task.createdAt.getFullYear() === +year) {
-                    allTasks.push(task)
-                } else if (!year && month && !date && task.createdAt.getMonth() === +month) {
-                    allTasks.push(task)
-                } else if (!year && !month && date && task.createdAt.getDate() === +date) {
-                    allTasks.push(task)
-                } else if (year && month && !date && task.createdAt.getFullYear() === +year && task.createdAt.getMonth() === +month) {
-                    allTasks.push(task)
-                } else if (!year && month && date && task.createdAt.getMonth() === +month && task.createdAt.getDate() === +date) {
-                    allTasks.push(task)
-                } else if (year && !month && date && task.createdAt.getDate() === +date && task.createdAt.getFullYear() === +year) {
-                    allTasks.push(task)
-                } else if (year && month && date && task.createdAt.getDate() === +date && task.createdAt.getMonth() === +month && task.createdAt.getFullYear() === +year) {
-                    allTasks.push(task)
-                } else if (!year && !month && !date) {
-                    allTasks.push(task)
-                }
-            })
-        } else {
-            const tasks = await Task.find({
-                createdBy: req.user.userId
-            })
-            tasks.forEach(async (task) => {
-                if (task.status !== 'completed' && task.status !== 'cancelled' && task.completionDate < new Date()) {
+        const tasks = await Task.find({
+            createdBy: req.user.userId
+        })
+        tasks.forEach(async (task) => {
+            if (task.status !== 'completed' && task.status !== 'cancelled') {
+                if (task.completionDate < new Date() && task.status != 'delayed') {
                     await Task.findOneAndUpdate({
                         _id: task._id
                     },
                         { status: 'delayed' },
                         { new: true, runValidators: true })
+                } else if (task.completionDate > new Date() && task.status != 'pending') {
+                    await Task.findOneAndUpdate({
+                        _id: task._id
+                    },
+                        { status: 'pending' },
+                        { new: true, runValidators: true })
                 }
-            })
+            }
+        })
+        const { year, month, date, status, sort } = req.query
+        let allTasks = []
+        if (year || month || date || status || sort) {
+            let tasks
+            if (status) {
+                tasks = await Task.find({
+                    createdBy: req.user.userId,
+                    status: status
+                }).sort({ "completionDate": sort === 'old' ? 1 : -1 })
+            } else {
+                tasks = await Task.find({
+                    createdBy: req.user.userId
+                }).sort({ "completionDate": sort === 'old' ? 1 : -1 })
+            }
+            if (year || month || date) {
+                tasks.forEach((task) => {
+                    if (year && !month && !date) {
+                        if (task.completionDate.getFullYear() === +year) {
+                            allTasks.push(task)
+                        }
+                    } else if (!year && month && !date) {
+                        if (task.completionDate.getMonth() === +month) {
+                            allTasks.push(task)
+                        }
+                    } else if (!year && !month && date) {
+                        if (task.completionDate.getDate() === +date) {
+                            allTasks.push(task)
+                        }
+                    } else if (year && month && !date) {
+                        if (task.completionDate.getFullYear() === +year && task.completionDate.getMonth() === +month) {
+                            allTasks.push(task)
+                        }
+                    } else if (!year && month && date) {
+                        if (task.completionDate.getDate() === +date && task.completionDate.getMonth() === +month) {
+                            allTasks.push(task)
+                        }
+                    } else if (year && !month && date) {
+                        if (task.completionDate.getFullYear() === +year && task.completionDate.getDate() === +date) {
+                            allTasks.push(task)
+                        }
+                    } else if (year && month && date) {
+                        if (task.completionDate.getFullYear() === +year && task.completionDate.getMonth() === +month && task.completionDate.getDate() === +date) {
+                            allTasks.push(task)
+                        }
+                    }
+                })
+            } else {
+                allTasks.push(...tasks)
+            }
+        } else {
             allTasks = await Task.find({
                 createdBy: req.user.userId
-            }).sort({ "createdAt": -1 })
+            }).sort({ "completionDate": -1 })
         }
         return res.status(StatusCodes.OK).json({ status: 'ok', count: allTasks.length, allTasks })
     } catch (error) {
-        console.log(error)
         next(error)
     }
 }
@@ -124,7 +154,6 @@ const deleteAllTasks = async (req, res) => {
 }
 
 const editTask = async (req, res) => {
-
     try {
         const { userId } = req.user
         const taskId = req.params.id
