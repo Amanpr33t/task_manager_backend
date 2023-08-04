@@ -6,11 +6,13 @@ const { StatusCodes } = require('http-status-codes')
 const addTask = async (req, res) => {
     try {
         req.body.createdBy = req.user.userId
-        const { taskInfo, completionDate } = req.body
-        if (!completionDate || !taskInfo) {
-            throw new CustomAPIError('Add taskInfo and completion date', 204)
-        } else if (taskInfo && taskInfo.length > 160) {
+        const { title, content, completionDate } = req.body
+        if (!completionDate || !content || !title) {
+            throw new CustomAPIError('Add content and completion date', 204)
+        } else if (content && content.length > 160) {
             throw new CustomAPIError('Task content is too long', 204)
+        } else if (title && title.length > 50) {
+            throw new CustomAPIError('Task title is too long', 204)
         } else {
             await Task.create({ ...req.body, completionDate: new Date(completionDate) })
             return res.status(StatusCodes.CREATED).json({ status: 'ok', msg: 'Task has been added successfully' })
